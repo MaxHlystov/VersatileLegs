@@ -1,4 +1,4 @@
-package ru.fmtk.sychroleacks;
+package ru.fmtk.synchroleacks;
 
 import android.support.annotation.NonNull;
 

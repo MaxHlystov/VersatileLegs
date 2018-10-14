@@ -1,6 +1,5 @@
-package ru.fmtk.sychroleacks;
+package ru.fmtk.synchroleacks;
 
-import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -68,23 +67,32 @@ public class MainActivity extends AppCompatActivity {
             while (isRunning) {
                 synchronized (current) {
                     if (current.get() == side) {
-                        System.out.println("Call " + side.getName() + " step from " + Thread.currentThread().toString());
                         sendText(side.getName() + " step");
                         current.toggle();
                     }
                 }
             }
-            System.out.println("Call " + side.getName() + " leg stop from" + Thread.currentThread().toString());
             sendText(side.getName() + " leg stopped!");
         }
 
         public void sendText(String text) {
+            System.out.println("Call " + text + "; from: " + Thread.currentThread().toString());
             TextView textView = wtv.get();
             if(textView != null) {
                 textView.post(() -> {
                     TextView tv = wtv.get();
                     if(tv != null) {
-                        tv.setText(text);
+                        String oldText = tv.getText().toString();
+                        String newText = oldText;
+                        if(oldText.length() < 200) {
+                            newText += text;
+                        }
+                        else {
+                            int endOfLineIdx = newText.indexOf('\n');
+                            newText = newText.substring(endOfLineIdx+1) + text;
+                        }
+                        System.out.println("Set tv to: " + text + "; from: " + Thread.currentThread().toString());
+                        tv.setText(newText + '\n');
                     }
                 });
             }

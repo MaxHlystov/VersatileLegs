@@ -3,7 +3,7 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 27
     defaultConfig {
-        applicationId "ru.fmtk.sychroleacks"
+        applicationId "ru.fmtk.synchroleacks"
         minSdkVersion 21
         targetSdkVersion 27
         versionCode 1
