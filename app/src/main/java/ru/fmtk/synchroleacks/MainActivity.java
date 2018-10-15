@@ -1,5 +1,8 @@
 package ru.fmtk.synchroleacks;
 
+import android.os.Handler;
+import android.os.Message;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -8,9 +11,17 @@ import android.widget.TextView;
 
 import java.lang.ref.WeakReference;
 
+import static android.text.TextUtils.isEmpty;
+
 public class MainActivity extends AppCompatActivity {
 
-    private static final String logTag = "MyApp";
+    private static final int STATUS_MSG = 1;
+
+    @Nullable
+    private Handler handler;
+
+    @Nullable
+    private TextView tvText;
 
     @Nullable
     private VersatileLeg thLeft;
@@ -28,10 +39,19 @@ public class MainActivity extends AppCompatActivity {
     public void onStart() {
         super.onStart();
 
-        TextView tvText = findViewById(R.id.tv_text);
+        tvText = findViewById(R.id.tv_text);
+        handler = new Handler() {
+            @Override
+            public void handleMessage(Message msg) {
+                if (msg.what == STATUS_MSG) {
+                    setText((String)msg.obj);
+                }
+            }
+        };
+
         Step currentStep = new Step(Step.StepSide.Left);
-        thLeft = new VersatileLeg(Step.StepSide.Left, currentStep, tvText);
-        thRight = new VersatileLeg(Step.StepSide.Right, currentStep, tvText);
+        thLeft = new VersatileLeg(Step.StepSide.Left, currentStep, handler);
+        thRight = new VersatileLeg(Step.StepSide.Right, currentStep, handler);
         new Thread(thLeft).start();
         new Thread(thRight).start();
     }
@@ -46,7 +66,24 @@ public class MainActivity extends AppCompatActivity {
             thRight.stopMe();
             thRight = null;
         }
+        handler.removeCallbacksAndMessages(null);
+        tvText = null;
         super.onStop();
+    }
+
+    private void setText(@Nullable String text) {
+        if (tvText != null && !isEmpty(text)) {
+            String oldText = tvText.getText().toString();
+            String newText = oldText;
+            if (oldText.length() < 200) {
+                newText += text;
+            } else {
+                int endOfLineIdx = newText.indexOf('\n');
+                newText = newText.substring(endOfLineIdx + 1) + text;
+            }
+            System.out.println("Set tv to: " + text + "; from: " + Thread.currentThread().toString());
+            tvText.setText(newText + '\n');
+        }
     }
 
     private static class VersatileLeg implements Runnable {
@@ -54,12 +91,12 @@ public class MainActivity extends AppCompatActivity {
         private final Step current;
 
         private boolean isRunning = true;
-        private WeakReference<TextView> wtv;
+        private WeakReference<Handler> weakHandler;
 
-        public VersatileLeg(Step.StepSide side, Step start, TextView tv) {
+        public VersatileLeg(Step.StepSide side, Step start, @NonNull Handler handler) {
             this.side = side;
             this.current = start;
-            this.wtv = new WeakReference<>(tv);
+            this.weakHandler = new WeakReference<>(handler);
         }
 
         @Override
@@ -77,24 +114,10 @@ public class MainActivity extends AppCompatActivity {
 
         public void sendText(String text) {
             System.out.println("Call " + text + "; from: " + Thread.currentThread().toString());
-            TextView textView = wtv.get();
-            if(textView != null) {
-                textView.post(() -> {
-                    TextView tv = wtv.get();
-                    if(tv != null) {
-                        String oldText = tv.getText().toString();
-                        String newText = oldText;
-                        if(oldText.length() < 200) {
-                            newText += text;
-                        }
-                        else {
-                            int endOfLineIdx = newText.indexOf('\n');
-                            newText = newText.substring(endOfLineIdx+1) + text;
-                        }
-                        System.out.println("Set tv to: " + text + "; from: " + Thread.currentThread().toString());
-                        tv.setText(newText + '\n');
-                    }
-                });
+            Handler handler = weakHandler.get();
+            if (handler != null) {
+                handler.sendMessage(
+                        handler.obtainMessage(MainActivity.STATUS_MSG, text));
             }
         }
 
