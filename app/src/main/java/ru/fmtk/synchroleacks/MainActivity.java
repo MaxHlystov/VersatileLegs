@@ -66,7 +66,7 @@ public class MainActivity extends AppCompatActivity {
             thRight.stopMe();
             thRight = null;
         }
-        handler.removeCallbacksAndMessages(null);
+        if(handler != null) handler.removeCallbacksAndMessages(null);
         tvText = null;
         super.onStop();
     }
@@ -91,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
         private final Step current;
 
         private boolean isRunning = true;
-        private WeakReference<Handler> weakHandler;
+        private final WeakReference<Handler> weakHandler;
 
         public VersatileLeg(Step.StepSide side, Step start, @NonNull Handler handler) {
             this.side = side;
