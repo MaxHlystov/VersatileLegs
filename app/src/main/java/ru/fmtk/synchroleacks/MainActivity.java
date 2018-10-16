@@ -1,11 +1,13 @@
 package ru.fmtk.synchroleacks;
 
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.TextView;
 
 
@@ -18,9 +20,6 @@ public class MainActivity extends AppCompatActivity {
     private static final int STATUS_MSG = 1;
 
     @Nullable
-    private Handler handler;
-
-    @Nullable
     private TextView tvText;
 
     @Nullable
@@ -28,6 +27,9 @@ public class MainActivity extends AppCompatActivity {
 
     @Nullable
     private VersatileLeg thRight;
+
+    @Nullable
+    private Handler handler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,18 +42,21 @@ public class MainActivity extends AppCompatActivity {
         super.onStart();
 
         tvText = findViewById(R.id.tv_text);
-        handler = new Handler() {
+        handler = new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(Message msg) {
                 if (msg.what == STATUS_MSG) {
                     setText((String)msg.obj);
                 }
+                else {
+                    super.handleMessage(msg);
+                }
             }
         };
 
         Step currentStep = new Step(Step.StepSide.Left);
-        thLeft = new VersatileLeg(Step.StepSide.Left, currentStep, handler);
-        thRight = new VersatileLeg(Step.StepSide.Right, currentStep, handler);
+        thLeft = new VersatileLeg(Step.StepSide.Left, currentStep);
+        thRight = new VersatileLeg(Step.StepSide.Right, currentStep);
         new Thread(thLeft).start();
         new Thread(thRight).start();
     }
@@ -66,8 +71,12 @@ public class MainActivity extends AppCompatActivity {
             thRight.stopMe();
             thRight = null;
         }
-        if(handler != null) handler.removeCallbacksAndMessages(null);
         tvText = null;
+        if(handler != null) {
+            handler.removeCallbacksAndMessages(null);
+            handler = null;
+        }
+        handler = null;
         super.onStop();
     }
 
@@ -91,12 +100,14 @@ public class MainActivity extends AppCompatActivity {
         private final Step current;
 
         private boolean isRunning = true;
-        private final WeakReference<Handler> weakHandler;
 
-        public VersatileLeg(Step.StepSide side, Step start, @NonNull Handler handler) {
+        @Nullable
+        private Handler handler;
+
+        public VersatileLeg(Step.StepSide side, Step start) {
             this.side = side;
             this.current = start;
-            this.weakHandler = new WeakReference<>(handler);
+            this.handler = new Handler(Looper.getMainLooper());
         }
 
         @Override
@@ -109,20 +120,19 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             }
-            sendText(side.getName() + " leg stopped!");
-        }
-
-        public void sendText(String text) {
-            System.out.println("Call " + text + "; from: " + Thread.currentThread().toString());
-            Handler handler = weakHandler.get();
-            if (handler != null) {
-                handler.sendMessage(
-                        handler.obtainMessage(MainActivity.STATUS_MSG, text));
-            }
+            sendText(side.getName() + " leg stopped!");;
         }
 
         public void stopMe() {
             isRunning = false;
+        }
+
+        private void sendText(String text) {
+            System.out.println("Call " + text + "; from: " + Thread.currentThread().toString());
+            if (handler != null) {
+                Message message = handler.obtainMessage(MainActivity.STATUS_MSG, text);
+                handler.sendMessage(message);
+            }
         }
     }
 }
