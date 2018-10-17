@@ -13,10 +13,18 @@ public class AsyncTaskLeg extends AsyncTask<Void, String, Void> {
     @Nullable
     private WeakReference<IDataView> weakViewer;
 
-    public AsyncTaskLeg(Step.StepSide side, Step start, IDataView viewer) {
+    public AsyncTaskLeg(Step.StepSide side, Step start) {
         this.side = side;
         this.current = start;
+        this.weakViewer = null;
+    }
+
+    public void setViewer(IDataView viewer) {
         this.weakViewer = new WeakReference<>(viewer);
+    }
+
+    public void unlinkViewer() {
+        this.weakViewer = null;
     }
 
     @Override
@@ -46,9 +54,11 @@ public class AsyncTaskLeg extends AsyncTask<Void, String, Void> {
 
     private void sendText(String text) {
         System.out.println("Call " + text + "; from: " + Thread.currentThread().toString());
-        IDataView viewer = weakViewer.get();
-        if (viewer != null) {
-            viewer.setText(text);
+        if(weakViewer != null) {
+            IDataView viewer = weakViewer.get();
+            if (viewer != null) {
+                viewer.setText(text);
+            }
         }
     }
 }
