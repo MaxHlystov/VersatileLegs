@@ -1,5 +1,8 @@
 package ru.fmtk.synchroleacks;
 
+import android.annotation.TargetApi;
+import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -15,21 +18,17 @@ import java.lang.ref.WeakReference;
 
 import static android.text.TextUtils.isEmpty;
 
-public class MainActivity extends AppCompatActivity {
-
-    private static final int STATUS_MSG = 1;
+public class MainActivity extends AppCompatActivity implements IDataView {
 
     @Nullable
     private TextView tvText;
 
     @Nullable
-    private VersatileLeg thLeft;
+    private AsyncTaskLeg asyncLeft;
 
     @Nullable
-    private VersatileLeg thRight;
+    private AsyncTaskLeg asyncRight;
 
-    @Nullable
-    private Handler handler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,45 +41,27 @@ public class MainActivity extends AppCompatActivity {
         super.onStart();
 
         tvText = findViewById(R.id.tv_text);
-        handler = new Handler(Looper.getMainLooper()) {
-            @Override
-            public void handleMessage(Message msg) {
-                if (msg.what == STATUS_MSG) {
-                    setText((String)msg.obj);
-                }
-                else {
-                    super.handleMessage(msg);
-                }
-            }
-        };
 
         Step currentStep = new Step(Step.StepSide.Left);
-        thLeft = new VersatileLeg(Step.StepSide.Left, currentStep);
-        thRight = new VersatileLeg(Step.StepSide.Right, currentStep);
-        new Thread(thLeft).start();
-        new Thread(thRight).start();
+        asyncLeft = new AsyncTaskLeg(Step.StepSide.Left, currentStep, this);
+        asyncRight = new AsyncTaskLeg(Step.StepSide.Right, currentStep, this);
+        //startMyTask(asyncLeft);
+        //startMyTask(asyncRight);
+        asyncLeft.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        asyncRight.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     @Override
     protected void onStop() {
-        if (thLeft != null) {
-            thLeft.stopMe();
-            thLeft = null;
-        }
-        if (thRight != null) {
-            thRight.stopMe();
-            thRight = null;
-        }
         tvText = null;
-        if(handler != null) {
-            handler.removeCallbacksAndMessages(null);
-            handler = null;
-        }
-        handler = null;
+        asyncLeft.cancel(false);
+        asyncRight.cancel(false);
+        asyncLeft = null;
+        asyncRight = null;
         super.onStop();
     }
 
-    private void setText(@Nullable String text) {
+    public void setText(@Nullable String text) {
         if (tvText != null && !isEmpty(text)) {
             String oldText = tvText.getText().toString();
             String newText = oldText;
@@ -92,47 +73,6 @@ public class MainActivity extends AppCompatActivity {
             }
             System.out.println("Set tv to: " + text + "; from: " + Thread.currentThread().toString());
             tvText.setText(newText + '\n');
-        }
-    }
-
-    private static class VersatileLeg implements Runnable {
-        private final Step.StepSide side;
-        private final Step current;
-
-        private boolean isRunning = true;
-
-        @Nullable
-        private Handler handler;
-
-        public VersatileLeg(Step.StepSide side, Step start) {
-            this.side = side;
-            this.current = start;
-            this.handler = new Handler(Looper.getMainLooper());
-        }
-
-        @Override
-        public void run() {
-            while (isRunning) {
-                synchronized (current) {
-                    if (current.get() == side) {
-                        sendText(side.getName() + " step");
-                        current.toggle();
-                    }
-                }
-            }
-            sendText(side.getName() + " leg stopped!");;
-        }
-
-        public void stopMe() {
-            isRunning = false;
-        }
-
-        private void sendText(String text) {
-            System.out.println("Call " + text + "; from: " + Thread.currentThread().toString());
-            if (handler != null) {
-                Message message = handler.obtainMessage(MainActivity.STATUS_MSG, text);
-                handler.sendMessage(message);
-            }
         }
     }
 }
